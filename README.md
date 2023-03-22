@@ -17,8 +17,15 @@ This will download the Geeptie source code and install the `geeptie` binary in y
 To use Geeptie, simply run the `geeptie` command in your terminal followed by your query. For example:
 
 ```
+geeptie What is the capital of France\?
+```
+
+or 
+
+```
 geeptie "What is the capital of France?"
 ```
+
 
 This will send your query to ChatGPT and display the response in your terminal. You can also use Geeptie to have a conversation with ChatGPT by running the `geeptie` command without any arguments:
 
