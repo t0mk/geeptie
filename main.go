@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"strings"
 
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/urfave/cli"
@@ -20,13 +21,14 @@ func getTokenFromEnv() string {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "geeptie"
-	app.Usage = "GPT Geenie"
+	app.Name = "qwe"
+	app.Usage = "GPT Querying"
 	app.Version = "0.0.1"
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "max-tokens, m",
 			Usage: "Maximum number of tokens to generate",
+			Value: 10,
 		},
 		cli.Float64Flag{
 			Name:  "temperature, T",
@@ -38,7 +40,7 @@ func main() {
 			Usage: "Top-p for the GPT-3 model",
 		},
 		cli.IntFlag{
-			Name:  "n",
+			Name:  "number-completions-n",
 			Usage: "Number of completions to generate",
 			Value: 1,
 		},
@@ -61,33 +63,59 @@ func main() {
 		},
 	}
 
-	app.Action = func(c *cli.Context) error {
-		if c.Bool("list-models") {
+	app.Action = func(clictx *cli.Context) error {
+		if clictx.Bool("list-models") {
 			for _, model := range AllModels {
 				fmt.Println(model)
 			}
 			return nil
 		}
-		maxTokens := c.Int("max-tokens")
-		temperature := float32(c.Float64("temperature"))
-		topP := float32(c.Int("top-p"))
-		n := c.Int("n")
-		stream := c.Bool("stream")
-		prompt := c.Args()
+		maxTokens := clictx.Int("max-tokens")
+		temperature := float32(clictx.Float64("temperature"))
+		topP := float32(clictx.Int("top-p"))
+		n := clictx.Int("n")
+		doStream := clictx.Bool("stream")
+		prompt := clictx.Args()
 		fmt.Println("tail", prompt)
 
-		client := openai.NewClient(getTokenFromEnv())
+		c := openai.NewClient(getTokenFromEnv())
 		ctx := context.Background()
-		completion := openai.CompletionRequest{
-			Prompt:      strings.Join(prompt, " "),
+		req := openai.CompletionRequest{
 			MaxTokens:   maxTokens,
 			Temperature: temperature,
 			TopP:        topP,
 			N:           n,
-			Stream:      stream,
+			Stream:      doStream,
 			Model:       openai.GPT3Ada,
 		}
-		resp, err := client.CreateCompletion(ctx, completion)
+
+		if doStream {
+
+			stream, err := c.CreateCompletionStream(ctx, req)
+			if err != nil {
+				return err
+			}
+
+			defer stream.Close()
+
+			for {
+				resp, err := stream.Recv()
+				if errors.Is(err, io.EOF) {
+					fmt.Println("Stream finished")
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				cs := resp.Choices
+				if len(cs) > 1 {
+					return fmt.Errorf("got more than one choice in stream: %v", cs)
+				}
+				fmt.Print(cs[0].Text)
+			}
+		}
+
+		resp, err := c.CreateCompletion(ctx, req)
 		if err != nil {
 			log.Fatal(err)
 		}

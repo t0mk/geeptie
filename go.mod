@@ -1,9 +1,9 @@
-module githu.com/t0mk/geeptie
+module githu.com/t0mk/qwe
 
 go 1.19
 
 require (
-	github.com/sashabaranov/go-openai v1.5.6
+	github.com/sashabaranov/go-openai v1.5.7
 	github.com/urfave/cli v1.22.12
 )
 
